@@ -60,6 +60,7 @@ async function loadWorkers(){
   }catch(e){$('workersList').innerHTML='<div class="empty-state">خطا در دریافت Workerها: '+esc(e.message)+'</div>'}
 }
 async function selectWorker(name){
+  stopTail();state.logs=[];$('logOutput').textContent='لاگی دریافت نشده است.';state.sourceError='';state.report=null;
   resetWorker();state.worker=name;
   $('selectedWorker').textContent=name;showPanel('detailPanel');
   $('summaryGrid').innerHTML=metric('Worker','در حال بررسی...')+metric('Versions','...')+metric('Deployments','...')+metric('Runtime','...');$('diagnosisList').innerHTML='<div class="empty-state">در حال دریافت اطلاعات Worker...</div>';
