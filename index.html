@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#07111f">
+  <meta name="description" content="ZERYNX Worker Recovery — diagnose Cloudflare Workers, inspect runtime logs and safely restore a previous deployment.">
+  <title>ZERYNX WORKER RECOVERY</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2307111f'/%3E%3Cpath d='M22 28h56L42 72h36' fill='none' stroke='%2300d4ff' stroke-width='9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/app.css">
+  <script src="assets/app.js" defer></script>
+</head>
+<body>
+  <div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="ZERYNX Worker Recovery">
+      <span class="brand-mark">Z</span>
+      <span><b>ZERYNX</b><small>WORKER RECOVERY</small></span>
+    </a>
+    <div class="top-meta"><span class="live-dot"></span><span>CLIENT-SIDE • ZERO BACKEND</span><span class="version">v1.0.0</span></div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow"><span></span> CLOUDFLARE WORKERS DIAGNOSTICS</div>
+        <h1>وقتی Worker از کار می‌افتد،<br><em>بازیابی را شروع کن.</em></h1>
+        <p>بررسی Worker، دریافت خطاهای Runtime، تحلیل نسخه‌ها و بازگردانی کنترل‌شده به Deployment سالم قبلی.</p>
+        <div class="hero-tags"><span>1101 Recovery</span><span>Runtime Logs</span><span>Version Rollback</span></div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+        <div class="core"><span>1101</span><small>RECOVERY</small></div>
+        <i class="node node-one"></i><i class="node node-two"></i><i class="node node-three"></i>
+      </div>
+    </section>
+
+    <section class="security-note">
+      <span class="shield">◇</span>
+      <div><b>توکن فقط در مرورگر خودت استفاده می‌شود.</b><p>این پروژه سرور واسط ندارد؛ توکن در LocalStorage یا هیچ دیتابیسی ذخیره نمی‌شود و با بستن/رفرش صفحه از حافظه پاک می‌شود.</p></div>
+    </section>
+
+    <section class="panel" id="connectPanel">
+      <div class="section-head"><div><span class="step">01</span><h2>اتصال امن به Cloudflare</h2></div><span class="muted">API TOKEN</span></div>
+      <p class="section-desc">توکن محدودشده بساز، در فیلد وارد کن و اتصال را بررسی کن.</p>
+      <div class="token-actions">
+        <a class="btn btn-secondary" href="https://dash.cloudflare.com/profile/api-tokens?permissionGroupKeys=%5B%7B%22key%22%3A%22workers_scripts%22%2C%22type%22%3A%22edit%22%7D%2C%7B%22key%22%3A%22workers_tail%22%2C%22type%22%3A%22read%22%7D%2C%7B%22key%22%3A%22account_settings%22%2C%22type%22%3A%22read%22%7D%5D&accountId=*&zoneId=all&name=ZERYNX%20Worker%20Recovery" target="_blank" rel="noopener noreferrer"><span>↗</span> ساخت API Token در Cloudflare</a>
+        <span class="hint">در مرحله Resource فقط Account موردنظر را انتخاب کن.</span>
+      </div>
+      <label class="field-label" for="apiToken">Cloudflare API Token</label>
+      <div class="token-field"><input id="apiToken" type="password" autocomplete="off" spellcheck="false" placeholder="توکن Cloudflare را اینجا وارد کن" aria-label="Cloudflare API Token"><button id="toggleToken" class="icon-btn" type="button" title="نمایش/مخفی‌کردن">◉</button></div>
+      <div class="row-actions"><button id="connectBtn" class="btn btn-primary">بررسی توکن و اتصال <span>→</span></button><button id="clearBtn" class="btn btn-quiet" type="button">پاک‌کردن توکن</button><span id="connectStatus" class="status-text" role="status">در انتظار اتصال</span></div>
+      <div class="permission-info"><b>مجوزهای موردنیاز این ابزار</b><span>Workers Scripts: Edit</span><span>Workers Tail: Read</span><span>Account Settings: Read</span><small>این مجوزها برای خواندن کد/نسخه‌ها، دریافت لاگ و ایجاد Deployment بازیابی لازم‌اند. ابزار Worker جدید نمی‌سازد یا حذف نمی‌کند.</small></div>
+    </section>
+
+    <section class="panel hidden" id="accountPanel">
+      <div class="section-head"><div><span class="step">02</span><h2>انتخاب حساب و Worker</h2></div><span id="accountCount" class="muted"></span></div>
+      <div class="field-grid">
+        <div><label class="field-label" for="accountSelect">Cloudflare Account</label><select id="accountSelect"><option value="">انتخاب حساب...</option></select></div>
+        <div><label class="field-label" for="workerSearch">جست‌وجوی Worker</label><input id="workerSearch" type="search" placeholder="نام Worker را وارد کن..."></div>
+      </div>
+      <div id="workersList" class="workers-list"><div class="empty-state">ابتدا حساب را انتخاب کن.</div></div>
+    </section>
+
+    <section class="panel hidden" id="detailPanel">
+      <div class="section-head"><div><span class="step">03</span><h2>مرکز تشخیص و بازیابی</h2></div><span id="selectedWorker" class="worker-chip"></span></div>
+      <div class="summary-grid" id="summaryGrid"></div>
+      <div class="detail-actions">
+        <button id="diagnoseBtn" class="btn btn-primary">اجرای بررسی عمیق <span>⌕</span></button>
+        <button id="tailBtn" class="btn btn-secondary">شروع دریافت Runtime Logs <span>◉</span></button>
+        <button id="backupBtn" class="btn btn-secondary">دریافت نسخه پشتیبان کد <span>↓</span></button>
+      </div>
+      <div class="subsection">
+        <div class="subhead"><h3>گزارش تشخیصی</h3><span id="diagnosisStatus" class="muted">هنوز بررسی اجرا نشده</span></div>
+        <div id="diagnosisList" class="diagnosis-list"><div class="empty-state">Worker را انتخاب کن و بررسی عمیق را اجرا کن.</div></div>
+      </div>
+      <div class="subsection">
+        <div class="subhead"><h3>Runtime Logs</h3><span id="tailStatus" class="muted">غیرفعال</span></div>
+        <div class="log-toolbar"><span>برای مشاهده خطای 1101، پس از شروع دریافت لاگ، یک درخواست به Worker بفرست.</span><button id="stopTailBtn" class="btn btn-quiet" disabled>توقف دریافت</button></div>
+        <pre id="logOutput" class="log-output">لاگی دریافت نشده است.</pre>
+      </div>
+      <div class="subsection">
+        <div class="subhead"><h3>بازیابی نسخه قبلی</h3><span class="warning-label">نیازمند تأیید صریح</span></div>
+        <p class="section-desc">اگر خطای 1101 بعد از انتشار نسخه جدید شروع شده، می‌توانی یکی از نسخه‌های قبلی را با ۱۰۰٪ ترافیک فعال کنی. این کار کد یا Bindingها را ویرایش نمی‌کند؛ فقط Deployment را به نسخه انتخابی برمی‌گرداند.</p>
+        <div class="rollback-row"><select id="versionSelect"><option value="">ابتدا بررسی عمیق را اجرا کن...</option></select><button id="rollbackBtn" class="btn btn-danger" disabled>بازگردانی به نسخه انتخابی</button></div>
+        <div id="rollbackStatus" class="status-text" role="status"></div>
+      </div>
+      <div class="subsection">
+        <div class="subhead"><h3>خروجی گزارش</h3><span class="muted">JSON • بدون Token</span></div>
+        <button id="reportBtn" class="btn btn-secondary">دانلود گزارش تشخیصی</button>
+      </div>
+    </section>
+
+    <section class="disclaimer">
+      <b>محدودیت فنی مهم</b>
+      <p>1101 یک علت واحد ندارد. ابزار لاگ و نسخه‌ها را بررسی می‌کند و در صورت وجود نسخه قبلی، Rollback امن ارائه می‌دهد؛ اما بدون مشاهده Exception واقعی، تغییر خودکار و حدسی سورس انجام نمی‌دهد. Rollback هم ممکن است مشکل ناشی از Binding، دیتابیس یا تنظیمات حساب را حل نکند. قبل از هر بازیابی، نسخه فعلی را دانلود و گزارش را نگه دار.</p>
+    </section>
+
+    <footer><span>© ZERYNX • WORKER RECOVERY</span><span>BUILT FOR CONTROLLED RECOVERY</span></footer>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
