@@ -2,7 +2,7 @@
 'use strict';
 const API='https://api.cloudflare.com/client/v4';
 const $=id=>document.getElementById(id);
-const state={token:'',accounts:[],account:null,workers:[],worker:null,versions:[],deployments:[],settings:null,versionDetail:null,source:'',logs:[],tail:null,tailSocket:null,diagnosis:[],report:null};
+const state={token:'',accounts:[],account:null,workers:[],worker:null,versions:[],deployments:[],settings:null,versionDetail:null,source:'',logs:[],tail:null,tailSocket:null,diagnosis:[],report:null,workersDev:null};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const stamp=s=>s?new Date(s).toLocaleString('fa-IR'):'نامشخص';
 function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),3500)}
@@ -22,7 +22,7 @@ async function requestText(path){
   if(!response.ok)throw new Error('HTTP '+response.status+' — '+text.slice(0,240));
   return text;
 }
-function resetWorker(){state.worker=null;state.versions=[];state.deployments=[];state.settings=null;state.versionDetail=null;state.source='';state.diagnosis=[];$('detailPanel').classList.add('hidden')}
+function resetWorker(){state.worker=null;state.versions=[];state.deployments=[];state.settings=null;state.versionDetail=null;state.source='';state.diagnosis=[];state.workersDev=null;$('changeWorkersDevBox').hidden=true;$('enableWorkersDevBtn').hidden=true;$('detailPanel').classList.add('hidden')}
 function showPanel(id){$(id).classList.remove('hidden')}
 function metric(label,value){return '<div class="metric"><small>'+esc(label)+'</small><b>'+esc(value)+'</b></div>'}
 function renderWorkers(){
@@ -90,6 +90,102 @@ function fillVersions(current){
   const options=state.versions.filter(v=>v.id&&v.id!==current);
   $('versionSelect').innerHTML=options.length?'<option value="">انتخاب نسخه قبلی...</option>'+options.map(v=>'<option value="'+esc(v.id)+'">#'+esc(v.number??'?')+' • '+esc(stamp(v.metadata?.created_on))+' • '+esc(v.id.slice(0,12))+'</option>').join(''):'<option value="">نسخه قبلی در دسترس نیست</option>';
   $('rollbackBtn').disabled=!options.length;
+}
+function workersDevUrl(worker,subdomain){
+  if(!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(worker||''))throw new Error('نام Worker برای ساخت URL معتبر نیست.');
+  if(!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(subdomain||''))throw new Error('زیردامنه Account معتبر نیست.');
+  return 'https://'+worker+'.'+subdomain+'.workers.dev/';
+}
+async function probeWorkersDev(url){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),9000);
+  try{
+    await fetch(url,{method:'GET',mode:'no-cors',cache:'no-store',redirect:'follow',signal:controller.signal});
+    return {reachable:true,detail:'درخواست شبکه پاسخ دریافت کرد؛ به‌دلیل no-cors محتوای پاسخ و کد HTTP قابل مشاهده نیست.'};
+  }catch(e){
+    return {reachable:false,detail:(e.name==='AbortError'?'مهلت اتصال تمام شد.':'اتصال از این مرورگر برقرار نشد: '+e.message)};
+  }finally{clearTimeout(timer)}
+}
+async function inspectWorkersDev(){
+  if(!state.account||!state.worker)return;
+  $('checkWorkersDevBtn').disabled=true;
+  $('workersDevInfo').textContent='در حال بررسی تنظیمات Account و Worker...';
+  setStatus('workersDevStatus','در حال بررسی...');
+  $('changeWorkersDevBox').hidden=true;
+  $('enableWorkersDevBtn').hidden=true;
+  try{
+    const [accountResult,scriptResult]=await Promise.all([
+      request('/accounts/'+encodeURIComponent(state.account)+'/workers/subdomain'),
+      request(apiPath(state.account,state.worker,'subdomain'))
+    ]);
+    const subdomain=accountResult.subdomain||'';
+    const enabled=scriptResult.enabled===true;
+    const url=subdomain?workersDevUrl(state.worker,subdomain):'';
+    const probe=enabled&&url?await probeWorkersDev(url):{reachable:false,detail:enabled?'زیردامنه‌ای برای این Account ثبت نشده است.':'آدرس workers.dev برای این Worker غیرفعال است.'};
+    state.workersDev={subdomain,enabled,url,reachable:probe.reachable,detail:probe.detail,checkedAt:new Date().toISOString()};
+    $('workersDevInfo').innerHTML=
+      '<div><b>Account subdomain:</b> '+esc(subdomain||'تنظیم نشده')+'</div>'+
+      '<div><b>Worker URL:</b> '+(url?'<a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+esc(url)+'</a>':'ناموجود')+'</div>'+
+      '<div><b>وضعیت workers.dev برای Worker:</b> '+(enabled?'فعال':'غیرفعال')+'</div>'+
+      '<div><b>بررسی شبکه:</b> '+esc(probe.detail)+'</div>';
+    if(!enabled){
+      setStatus('workersDevStatus','آدرس Worker غیرفعال است','error');
+      $('enableWorkersDevBtn').hidden=false;
+    }else if(probe.reachable){
+      setStatus('workersDevStatus','آدرس فعلی پاسخ می‌دهد؛ حفظ شد','success');
+      $('changeWorkersDevBox').hidden=true;
+    }else{
+      setStatus('workersDevStatus','آدرس از این مرورگر قابل دسترسی نیست','error');
+      $('changeWorkersDevBox').hidden=false;
+    }
+    state.report=state.report||{created_at:new Date().toISOString(),account:state.account,worker:state.worker};
+    state.report.workers_dev=state.workersDev;
+  }catch(e){
+    state.workersDev={error:e.message};
+    $('workersDevInfo').textContent='بررسی API ناموفق بود: '+e.message+'؛ مجوز Workers Scripts: Read/Write را بررسی کن.';
+    setStatus('workersDevStatus','بررسی ناموفق','error');
+  }finally{$('checkWorkersDevBtn').disabled=false}
+}
+async function enableWorkerWorkersDev(){
+  if(!state.worker||!state.account)return;
+  if(!confirm('آدرس workers.dev برای Worker «'+state.worker+'» فعال شود؟'))return;
+  $('enableWorkersDevBtn').disabled=true;
+  try{
+    await request(apiPath(state.account,state.worker,'subdomain'),{
+      method:'POST',body:JSON.stringify({enabled:true,previews_enabled:false})
+    });
+    toast('آدرس workers.dev برای این Worker فعال شد.');
+    await inspectWorkersDev();
+  }catch(e){toast('فعال‌سازی ناموفق: '+e.message);setStatus('workersDevStatus','فعال‌سازی ناموفق','error')}
+  finally{$('enableWorkersDevBtn').disabled=false}
+}
+function suggestWorkersSubdomain(){
+  const bytes=new Uint8Array(4);crypto.getRandomValues(bytes);
+  const suffix=[...bytes].map(x=>x.toString(16).padStart(2,'0')).join('');
+  $('newWorkersSubdomain').value='zerynx-'+suffix;
+}
+async function changeWorkersAccountSubdomain(){
+  if(!state.account||!state.worker)return;
+  const next=$('newWorkersSubdomain').value.trim().toLowerCase();
+  if(!/^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$/.test(next)){
+    toast('زیردامنه باید 3 تا 32 کاراکتر، شامل حروف کوچک، عدد یا خط تیره باشد و با خط تیره شروع/تمام نشود.');
+    return;
+  }
+  if(next===state.workersDev?.subdomain){toast('این همان زیردامنه فعلی است.');return}
+  const old=state.workersDev?.subdomain||'تنظیم‌نشده';
+  if(!confirm('زیردامنه workers.dev از «'+old+'» به «'+next+'» تغییر کند؟\n\nاین تنظیم در سطح Account است و URL تمام Workerهای این حساب تغییر می‌کند؛ آدرس‌های قبلی دیگر معتبر نخواهند بود.'))return;
+  $('changeWorkersSubdomainBtn').disabled=true;
+  setStatus('workersDevStatus','در حال تغییر زیردامنه Account...');
+  try{
+    const result=await request('/accounts/'+encodeURIComponent(state.account)+'/workers/subdomain',{
+      method:'PUT',body:JSON.stringify({subdomain:next})
+    });
+    toast('زیردامنه Account تغییر کرد: '+(result.subdomain||next));
+    await inspectWorkersDev();
+  }catch(e){
+    setStatus('workersDevStatus','تغییر ناموفق: '+e.message,'error');
+    toast('Cloudflare زیردامنه جدید را نپذیرفت؛ ممکن است نام در دسترس نباشد یا مجوز Write لازم باشد.');
+  }finally{$('changeWorkersSubdomainBtn').disabled=false}
 }
 function addFinding(level,title,detail){state.diagnosis.push({level,title,detail})}
 function runDiagnosis(){
@@ -181,7 +277,7 @@ $('clearBtn').addEventListener('click',()=>{state.token='';$('apiToken').value='
 $('accountSelect').addEventListener('change',loadWorkers);
 $('workerSearch').addEventListener('input',renderWorkers);
 $('workersList').addEventListener('click',e=>{const b=e.target.closest('[data-worker]');if(b)selectWorker(b.dataset.worker)});
-$('diagnoseBtn').addEventListener('click',runDiagnosis);
+$('diagnoseBtn').addEventListener('click',runDiagnosis);\n$('checkWorkersDevBtn').addEventListener('click',inspectWorkersDev);\n$('enableWorkersDevBtn').addEventListener('click',enableWorkerWorkersDev);\n$('suggestWorkersSubdomainBtn').addEventListener('click',suggestWorkersSubdomain);\n$('changeWorkersSubdomainBtn').addEventListener('click',changeWorkersAccountSubdomain);
 $('tailBtn').addEventListener('click',startTail);
 $('stopTailBtn').addEventListener('click',stopTail);
 $('backupBtn').addEventListener('click',backup);
