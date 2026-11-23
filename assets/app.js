@@ -84,6 +84,7 @@ async function selectWorker(name){
   $('summaryGrid').innerHTML=metric('Worker',name)+metric('Versions',state.versions.length)+metric('Deployments',state.deployments.length)+metric('Current Version',String(current).slice(0,12));
   fillVersions(current);
   setStatus('diagnosisStatus','اطلاعات اولیه دریافت شد');
+  inspectWorkersDev();
   $('diagnosisList').innerHTML='<div class="empty-state">برای تحلیل Bindingها، کد و Runtime، «اجرای بررسی عمیق» را بزن.</div>';
 }
 function fillVersions(current){
@@ -277,7 +278,8 @@ $('clearBtn').addEventListener('click',()=>{state.token='';$('apiToken').value='
 $('accountSelect').addEventListener('change',loadWorkers);
 $('workerSearch').addEventListener('input',renderWorkers);
 $('workersList').addEventListener('click',e=>{const b=e.target.closest('[data-worker]');if(b)selectWorker(b.dataset.worker)});
-$('diagnoseBtn').addEventListener('click',runDiagnosis);\n$('checkWorkersDevBtn').addEventListener('click',inspectWorkersDev);\n$('enableWorkersDevBtn').addEventListener('click',enableWorkerWorkersDev);\n$('suggestWorkersSubdomainBtn').addEventListener('click',suggestWorkersSubdomain);\n$('changeWorkersSubdomainBtn').addEventListener('click',changeWorkersAccountSubdomain);
+$('diagnoseBtn').addEventListener('click',runDiagnosis);
+$('checkWorkersDevBtn').addEventListener('click',inspectWorkersDev);\n$('enableWorkersDevBtn').addEventListener('click',enableWorkerWorkersDev);\n$('suggestWorkersSubdomainBtn').addEventListener('click',suggestWorkersSubdomain);\n$('changeWorkersSubdomainBtn').addEventListener('click',changeWorkersAccountSubdomain);
 $('tailBtn').addEventListener('click',startTail);
 $('stopTailBtn').addEventListener('click',stopTail);
 $('backupBtn').addEventListener('click',backup);
