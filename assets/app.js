@@ -115,12 +115,13 @@ async function inspectWorkersDev(){
   $('changeWorkersDevBox').hidden=true;
   $('enableWorkersDevBtn').hidden=true;
   try{
-    const [accountResult,scriptResult]=await Promise.all([
+    const [accountResult,scriptResult]=await Promise.allSettled([
       request('/accounts/'+encodeURIComponent(state.account)+'/workers/subdomain'),
       request(apiPath(state.account,state.worker,'subdomain'))
     ]);
-    const subdomain=accountResult.subdomain||'';
-    const enabled=scriptResult.enabled===true;
+    if(scriptResult.status!=='fulfilled')throw new Error('خواندن وضعیت workers.dev برای Worker ناموفق بود: '+scriptResult.reason.message);
+    const subdomain=accountResult.status==='fulfilled'?(accountResult.value.subdomain||''):'';
+    const enabled=scriptResult.value.enabled===true;
     const url=subdomain?workersDevUrl(state.worker,subdomain):'';
     const probe=enabled&&url?await probeWorkersDev(url):{reachable:false,detail:enabled?'زیردامنه‌ای برای این Account ثبت نشده است.':'آدرس workers.dev برای این Worker غیرفعال است.'};
     state.workersDev={subdomain,enabled,url,reachable:probe.reachable,detail:probe.detail,checkedAt:new Date().toISOString()};
@@ -129,7 +130,13 @@ async function inspectWorkersDev(){
       '<div><b>Worker URL:</b> '+(url?'<a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+esc(url)+'</a>':'ناموجود')+'</div>'+
       '<div><b>وضعیت workers.dev برای Worker:</b> '+(enabled?'فعال':'غیرفعال')+'</div>'+
       '<div><b>بررسی شبکه:</b> '+esc(probe.detail)+'</div>';
-    if(!enabled){
+    if(accountResult.status!=='fulfilled'){
+      setStatus('workersDevStatus','زیردامنه Account دریافت نشد','error');
+      $('changeWorkersDevBox').hidden=false;
+    }else if(!subdomain){
+      setStatus('workersDevStatus','برای Account زیردامنه ثبت نشده است','error');
+      $('changeWorkersDevBox').hidden=false;
+    }else if(!enabled){
       setStatus('workersDevStatus','آدرس Worker غیرفعال است','error');
       $('enableWorkersDevBtn').hidden=false;
     }else if(probe.reachable){
