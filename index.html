@@ -70,6 +70,26 @@
         <button id="tailBtn" class="btn btn-secondary">شروع دریافت Runtime Logs <span>◉</span></button>
         <button id="backupBtn" class="btn btn-secondary">دریافت نسخه پشتیبان کد <span>↓</span></button>
       </div>
+      <div class="subsection workers-dev-panel">
+        <div class="subhead"><h3>بررسی و بازیابی آدرس workers.dev</h3><span id="workersDevStatus" class="muted">در انتظار بررسی</span></div>
+        <p class="section-desc">زیردامنه حساب و فعال‌بودن آدرس این Worker بررسی می‌شود؛ سپس دسترسی شبکه از همین مرورگر آزمایش می‌شود.</p>
+        <div id="workersDevInfo" class="workers-dev-info">Worker را انتخاب کن تا آدرس فعلی بررسی شود.</div>
+        <div class="detail-actions">
+          <button id="checkWorkersDevBtn" class="btn btn-secondary" type="button">بررسی آدرس فعلی</button>
+          <button id="enableWorkersDevBtn" class="btn btn-secondary" type="button" hidden>فعال‌سازی آدرس این Worker</button>
+        </div>
+        <div id="changeWorkersDevBox" class="workers-dev-change" hidden>
+          <b>آدرس فعلی از این مرورگر در دسترس نبود.</b>
+          <p>این نتیجه به‌تنهایی ثابت نمی‌کند Cloudflare آدرس را مسدود کرده؛ ممکن است مشکل DNS، TLS، شبکه یا وضعیت Worker باشد. اگر زیردامنه حساب را تغییر بدهی، URL تمام Workerهای این Account تغییر می‌کند.</p>
+          <label class="field-label" for="newWorkersSubdomain">زیردامنه جدید Account</label>
+          <div class="workers-dev-input-row">
+            <input id="newWorkersSubdomain" type="text" maxlength="32" autocomplete="off" spellcheck="false" placeholder="مثلاً zerynx-edge-2026">
+            <button id="suggestWorkersSubdomainBtn" class="btn btn-quiet" type="button">پیشنهاد نام</button>
+          </div>
+          <div class="hint">آدرس جدید این Worker پس از تغییر: نام‌Worker.زیردامنه‌جدید.workers.dev</div>
+          <button id="changeWorkersSubdomainBtn" class="btn btn-danger" type="button">تغییر زیردامنه Account با تأیید نهایی</button>
+        </div>
+      </div>
       <div class="subsection">
         <div class="subhead"><h3>گزارش تشخیصی</h3><span id="diagnosisStatus" class="muted">هنوز بررسی اجرا نشده</span></div>
         <div id="diagnosisList" class="diagnosis-list"><div class="empty-state">Worker را انتخاب کن و بررسی عمیق را اجرا کن.</div></div>
